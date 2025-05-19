@@ -1,0 +1,14 @@
+services:
+  postgresql:
+    container_name: nimbus-notify-postgresql
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=nimbus-notify
+      - POSTGRES_PORT=5432
+    restart: no
+    ports:
+      - "5432:5432"
+
+
