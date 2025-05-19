@@ -13,8 +13,8 @@ type Config struct {
 }
 
 type HTTPServer struct {
-	Host string `yaml:"host"`
-	Port string `yaml:"port" env-default:"8080"`
+	Host string `yaml:"host" env:"SERVER_HOST" env-default:"0.0.0.0"`
+	Port string `yaml:"port" env:"SERVER_PORT" env-default:"8080"`
 }
 
 type Datasource struct {
@@ -22,8 +22,8 @@ type Datasource struct {
 }
 
 type WeatherProvider struct {
-	Url string `yaml:"url"`
-	Key string `yaml:"key"`
+	Url string `yaml:"url" env:"WEATHER_PROVIDER_URL"`
+	Key string `yaml:"key" env:"WEATHER_PROVIDER_KEY"`
 }
 
 func ReadConfig(configPath string) *Config {

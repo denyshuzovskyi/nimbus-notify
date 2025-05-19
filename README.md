@@ -14,3 +14,6 @@ mockery
 
 go test ./...
 
+docker build -f api-server.Dockerfile -t nimbus-notify .
+docker-compose up
+

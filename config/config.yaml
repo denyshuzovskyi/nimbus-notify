@@ -1,4 +1,3 @@
-env: "local"
 server:
   host: "0.0.0.0"
   port: "8080"
@@ -6,4 +5,4 @@ datasource:
   url: postgres://user:password@localhost:5432/nimbus-notify?sslmode=disable
 weather-provider:
   url: https://api.weatherapi.com/v1
-  key: ""
+  key: key
