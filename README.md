@@ -1,6 +1,8 @@
 # nimbus-notify
 Service that allows to subscribe to regular emails with weather updates
 
+### Demo
+Deployed version: http://db35m6zjaamdj.cloudfront.net/
 
 ### Task
 https://github.com/mykhailo-hrynko/se-school-5
