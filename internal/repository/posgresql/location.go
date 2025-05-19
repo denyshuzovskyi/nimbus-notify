@@ -55,3 +55,28 @@ func (r *LocationRepository) FindByName(ctx context.Context, ex sqlutil.SQLExecu
 	}
 	return &l, nil
 }
+
+func (r *LocationRepository) FindById(ctx context.Context, ex sqlutil.SQLExecutor, id int32) (*model.Location, error) {
+	const op = "repository.postgresql.location.FindById"
+	const query = `
+		SELECT 
+			l.id,
+			l.name
+		FROM location l
+		WHERE l.id = $1
+		LIMIT 1;
+	`
+
+	var l model.Location
+	err := ex.QueryRowContext(ctx, query, id).Scan(
+		&l.Id,
+		&l.Name,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("%s: query failed: %w", op, err)
+	}
+	return &l, nil
+}

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/denyshuzovskyi/nimbus-notify/internal/client/emailclient"
 	"github.com/denyshuzovskyi/nimbus-notify/internal/client/weatherapi"
 	"github.com/denyshuzovskyi/nimbus-notify/internal/config"
 	"github.com/denyshuzovskyi/nimbus-notify/internal/handler"
@@ -16,6 +17,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/mailgun/mailgun-go/v4"
 	"github.com/robfig/cron/v3"
 	"log/slog"
 	"net/http"
@@ -69,26 +71,42 @@ func main() {
 		log.Info("migration completed successfully")
 	}
 
+	emailDataMap := prepareEmailData(cfg)
+	confirmEmailData, confOk := emailDataMap["confirmation"]
+	confirmSuccessEmailData, confSuccessOk := emailDataMap["confirmation-successful"]
+	weatherEmailData, weatherOk := emailDataMap["weather"]
+	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
+	if !confOk || !confSuccessOk || !weatherOk || !unsubOk {
+		log.Error("cannot prepare email data")
+		os.Exit(1)
+	}
+
 	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)
+	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 	locationRepository := posgresql.NewLocationRepository()
 	weatherRepository := posgresql.NewWeatherRepository()
 	subscriberRepository := posgresql.NewSubscriberRepository()
 	subscriptionRepository := posgresql.NewSubscriptionRepository()
 	tokenRepository := posgresql.NewTokenRepository()
 	weatherService := service.NewWeatherService(db, weatherApiClient, locationRepository, weatherRepository, log)
-	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, locationRepository, subscriberRepository, subscriptionRepository, tokenRepository, log)
+	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, locationRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
+	notificationService := service.NewNotificationService(db, weatherApiClient, locationRepository, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
 
 	c := cron.New()
 	// daily 09:00
-	_, err = c.AddFunc("0 9 * * *", func() {})
+	_, err = c.AddFunc("0 9 * * *", func() {
+		notificationService.SendDailyNotifications(weatherEmailData)
+	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)
 		os.Exit(1)
 	}
 	// hourly
-	_, err = c.AddFunc("0 * * * *", func() {})
+	_, err = c.AddFunc("0 * * * *", func() {
+		notificationService.SendHourlyNotifications(weatherEmailData)
+	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)
 		os.Exit(1)
@@ -113,4 +131,16 @@ func main() {
 		log.Error("failed to start server", "error", err)
 		return
 	}
+}
+
+func prepareEmailData(cfg *config.Config) map[string]config.EmailData {
+	emailDataMap := make(map[string]config.EmailData)
+
+	for _, email := range cfg.Emails {
+		memail := email
+		memail.From = cfg.EmailService.Sender
+		emailDataMap[memail.Name] = memail
+	}
+
+	return emailDataMap
 }

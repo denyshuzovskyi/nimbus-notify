@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/denyshuzovskyi/nimbus-notify/internal/config"
 	"github.com/denyshuzovskyi/nimbus-notify/internal/dto"
 	commonerrors "github.com/denyshuzovskyi/nimbus-notify/internal/error"
 	"github.com/denyshuzovskyi/nimbus-notify/internal/lib/sqlutil"
@@ -17,6 +18,7 @@ import (
 type SubscriberRepository interface {
 	Save(context.Context, sqlutil.SQLExecutor, *model.Subscriber) (int32, error)
 	FindByEmail(context.Context, sqlutil.SQLExecutor, string) (*model.Subscriber, error)
+	FindById(context.Context, sqlutil.SQLExecutor, int32) (*model.Subscriber, error)
 }
 
 type SubscriptionRepository interface {
@@ -25,21 +27,27 @@ type SubscriptionRepository interface {
 	FindById(context.Context, sqlutil.SQLExecutor, int32) (*model.Subscription, error)
 	DeleteById(context.Context, sqlutil.SQLExecutor, int32) error
 	Update(context.Context, sqlutil.SQLExecutor, *model.Subscription) (*model.Subscription, error)
+	FindAllByFrequencyAndConfirmedStatus(context.Context, sqlutil.SQLExecutor, model.Frequency) ([]*model.Subscription, error)
 }
 
 type TokenRepository interface {
 	Save(context.Context, sqlutil.SQLExecutor, *model.Token) error
 	FindByToken(context.Context, sqlutil.SQLExecutor, string) (*model.Token, error)
+	FindBySubscriptionIdAndType(context.Context, sqlutil.SQLExecutor, int32, model.TokenType) (*model.Token, error)
 }
 
 type SubscriptionService struct {
-	db                     *sql.DB
-	weatherProvider        WeatherProvider
-	locationRepository     LocationRepository
-	subscriberRepository   SubscriberRepository
-	subscriptionRepository SubscriptionRepository
-	tokenRepository        TokenRepository
-	log                    *slog.Logger
+	db                      *sql.DB
+	weatherProvider         WeatherProvider
+	locationRepository      LocationRepository
+	subscriberRepository    SubscriberRepository
+	subscriptionRepository  SubscriptionRepository
+	tokenRepository         TokenRepository
+	emailSender             EmailSender
+	confirmEmailData        config.EmailData
+	confirmSuccessEmailData config.EmailData
+	unsubEmailData          config.EmailData
+	log                     *slog.Logger
 }
 
 func NewSubscriptionService(db *sql.DB,
@@ -48,15 +56,23 @@ func NewSubscriptionService(db *sql.DB,
 	subscriberRepository SubscriberRepository,
 	subscriptionRepository SubscriptionRepository,
 	tokenRepository TokenRepository,
+	emailSender EmailSender,
+	confirmEmailData config.EmailData,
+	confirmSuccessEmailData config.EmailData,
+	unsubEmailData config.EmailData,
 	log *slog.Logger) *SubscriptionService {
 	return &SubscriptionService{
-		db:                     db,
-		weatherProvider:        weatherProvider,
-		locationRepository:     locationRepository,
-		subscriberRepository:   subscriberRepository,
-		subscriptionRepository: subscriptionRepository,
-		tokenRepository:        tokenRepository,
-		log:                    log,
+		db:                      db,
+		weatherProvider:         weatherProvider,
+		locationRepository:      locationRepository,
+		subscriberRepository:    subscriberRepository,
+		subscriptionRepository:  subscriptionRepository,
+		tokenRepository:         tokenRepository,
+		emailSender:             emailSender,
+		confirmEmailData:        confirmEmailData,
+		confirmSuccessEmailData: confirmSuccessEmailData,
+		unsubEmailData:          unsubEmailData,
+		log:                     log,
 	}
 }
 
@@ -137,7 +153,21 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 			return errIn
 		}
 
-		//todo: send email
+		email := dto.SimpleEmail{
+			From:    s.confirmEmailData.From,
+			To:      subReq.Email,
+			Subject: s.confirmEmailData.Subject,
+			Text: fmt.Sprintf(
+				s.confirmEmailData.Text,
+				token.Token,
+			),
+		}
+
+		errIn = s.emailSender.Send(ctx, email)
+		if errIn != nil {
+			return errIn
+		}
+		s.log.Info("confirmation email is send")
 
 		return nil
 	})
@@ -178,6 +208,11 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 			return errIn
 		}
 
+		subscriber, errIn := s.subscriberRepository.FindById(ctx, tx, subscription.SubscriberId)
+		if errIn != nil {
+			return errIn
+		}
+
 		unsubToken := model.Token{
 			Token:          uuid.NewString(),
 			SubscriptionId: token.SubscriptionId,
@@ -190,7 +225,21 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 			return errIn
 		}
 
-		//todo: send email
+		email := dto.SimpleEmail{
+			From:    s.confirmSuccessEmailData.From,
+			To:      subscriber.Email,
+			Subject: s.confirmSuccessEmailData.Subject,
+			Text: fmt.Sprintf(
+				s.confirmSuccessEmailData.Text,
+				unsubToken.Token,
+			),
+		}
+
+		errIn = s.emailSender.Send(ctx, email)
+		if errIn != nil {
+			return errIn
+		}
+		s.log.Info("confirmation success email is send")
 
 		return nil
 	})
@@ -215,12 +264,33 @@ func (s *SubscriptionService) Unsubscribe(ctx context.Context, tokenStr string) 
 			return commonerrors.InvalidToken
 		}
 
+		subscription, errIn := s.subscriptionRepository.FindById(ctx, tx, token.SubscriptionId)
+		if errIn != nil {
+			return errIn
+		}
+
+		subscriber, errIn := s.subscriberRepository.FindById(ctx, tx, subscription.SubscriberId)
+		if errIn != nil {
+			return errIn
+		}
+
 		errIn = s.subscriptionRepository.DeleteById(ctx, tx, token.SubscriptionId)
 		if errIn != nil {
 			return errIn
 		}
 
-		//todo: send email
+		email := dto.SimpleEmail{
+			From:    s.unsubEmailData.From,
+			To:      subscriber.Email,
+			Subject: s.unsubEmailData.Subject,
+			Text:    s.unsubEmailData.Text,
+		}
+
+		errIn = s.emailSender.Send(ctx, email)
+		if errIn != nil {
+			return errIn
+		}
+		s.log.Info("unsubscribe success email is send")
 
 		return nil
 	})

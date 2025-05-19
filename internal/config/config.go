@@ -10,6 +10,8 @@ type Config struct {
 	HTTPServer      `yaml:"server"`
 	Datasource      `yaml:"datasource"`
 	WeatherProvider `yaml:"weather-provider"`
+	EmailService    `yaml:"email-service"`
+	Emails          []EmailData `yaml:"emails"`
 }
 
 type HTTPServer struct {
@@ -24,6 +26,19 @@ type Datasource struct {
 type WeatherProvider struct {
 	Url string `yaml:"url" env:"WEATHER_PROVIDER_URL"`
 	Key string `yaml:"key" env:"WEATHER_PROVIDER_KEY"`
+}
+
+type EmailService struct {
+	Domain string `yaml:"domain" env:"EMAIL_SERVICE_DOMAIN"`
+	Key    string `yaml:"key" env:"EMAIL_SERVICE_KEY"`
+	Sender string `yaml:"sender"`
+}
+
+type EmailData struct {
+	Name    string `yaml:"name"`
+	Subject string `yaml:"subject"`
+	Text    string `yaml:"text"`
+	From    string
 }
 
 func ReadConfig(configPath string) *Config {

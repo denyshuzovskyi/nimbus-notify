@@ -162,3 +162,49 @@ func (r *SubscriptionRepository) Update(ctx context.Context, ex sqlutil.SQLExecu
 	}
 	return &updated, nil
 }
+
+func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx context.Context, ex sqlutil.SQLExecutor, frequency model.Frequency) ([]*model.Subscription, error) {
+	const op = "repository.postgresql.subscription.FindAllByFrequencyAndConfirmedStatus"
+	const query = `
+		SELECT 
+			s.id,
+			s.subscriber_id,
+			s.location_id,
+			s.frequency,
+			s.status,
+			s.created_at,
+			s.updated_at
+		FROM subscription s
+		WHERE s.frequency = $1 AND s.status = 'confirmed';
+	`
+
+	rows, err := ex.QueryContext(ctx, query, frequency)
+	if err != nil {
+		return nil, fmt.Errorf("%s: query failed: %w", op, err)
+	}
+	defer rows.Close()
+
+	var subscriptions []*model.Subscription
+	for rows.Next() {
+		var s model.Subscription
+		err := rows.Scan(
+			&s.Id,
+			&s.SubscriberId,
+			&s.LocationId,
+			&s.Frequency,
+			&s.Status,
+			&s.CreatedAt,
+			&s.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("%s: scan failed: %w", op, err)
+		}
+		subscriptions = append(subscriptions, &s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: rows iteration error: %w", op, err)
+	}
+
+	return subscriptions, nil
+}

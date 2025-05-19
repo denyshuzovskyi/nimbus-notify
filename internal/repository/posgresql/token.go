@@ -64,3 +64,34 @@ func (r *TokenRepository) FindByToken(ctx context.Context, ex sqlutil.SQLExecuto
 	}
 	return &t, nil
 }
+
+func (r *TokenRepository) FindBySubscriptionIdAndType(ctx context.Context, ex sqlutil.SQLExecutor, subscriptionId int32, tokenType model.TokenType) (*model.Token, error) {
+	const op = "repository.postgresql.token.FindBySubscriptionIdAndType"
+	const query = `
+		SELECT 
+			t.token, 
+			t.subscription_id, 
+			t.type, 
+			t.created_at, 
+			t.expires_at
+		FROM token t
+		WHERE t.subscription_id = $1 AND t.type = $2
+		LIMIT 1;
+	`
+
+	var t model.Token
+	err := ex.QueryRowContext(ctx, query, subscriptionId, tokenType).Scan(
+		&t.Token,
+		&t.SubscriptionId,
+		&t.Type,
+		&t.CreatedAt,
+		&t.ExpiresAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("%s: query failed: %w", op, err)
+	}
+	return &t, nil
+}

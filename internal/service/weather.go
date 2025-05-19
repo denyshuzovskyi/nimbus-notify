@@ -77,7 +77,7 @@ func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, locat
 		return nil
 	})
 	if err != nil {
-		s.log.Error("failed to save location and weather", "error", err)
+		s.log.Error("rolled back transaction because of", "error", err)
 	} else {
 		s.log.Info("transaction commited successfully")
 	}

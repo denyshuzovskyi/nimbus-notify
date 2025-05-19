@@ -58,3 +58,30 @@ func (r *SubscriberRepository) FindByEmail(ctx context.Context, ex sqlutil.SQLEx
 	}
 	return &s, nil
 }
+
+func (r *SubscriberRepository) FindById(ctx context.Context, ex sqlutil.SQLExecutor, id int32) (*model.Subscriber, error) {
+	const op = "repository.postgresql.subscriber.FindById"
+	const query = `
+		SELECT 
+			s.id,
+			s.email,
+			s.created_at
+		FROM subscriber s
+		WHERE s.id = $1
+		LIMIT 1;
+	`
+
+	var s model.Subscriber
+	err := ex.QueryRowContext(ctx, query, id).Scan(
+		&s.Id,
+		&s.Email,
+		&s.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("%s: query failed: %w", op, err)
+	}
+	return &s, nil
+}
