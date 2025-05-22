@@ -188,7 +188,8 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 		}
 		if token == nil {
 			return commonerrors.TokenNotFound
-		} else if time.Now().UTC().After(token.ExpiresAt) || token.Type != model.TokenType_Confirmation {
+		}
+		if time.Now().UTC().After(token.ExpiresAt) || token.Type != model.TokenType_Confirmation {
 			return commonerrors.InvalidToken
 		}
 

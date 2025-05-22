@@ -4,6 +4,8 @@ Service that allows to subscribe to regular emails with weather updates
 ### Demo
 Deployed version: http://db35m6zjaamdj.cloudfront.net/
 
+**Email sending currently works only for pre-approved recipients due to the use of a sandbox domain**
+
 ### Task
 https://github.com/mykhailo-hrynko/se-school-5
 
