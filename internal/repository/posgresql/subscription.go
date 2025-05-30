@@ -163,7 +163,7 @@ func (r *SubscriptionRepository) Update(ctx context.Context, ex sqlutil.SQLExecu
 	return &updated, nil
 }
 
-func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx context.Context, ex sqlutil.SQLExecutor, frequency model.Frequency) ([]*model.Subscription, error) {
+func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx context.Context, ex sqlutil.SQLExecutor, frequency model.Frequency) (subscriptions []*model.Subscription, err error) {
 	const op = "repository.postgresql.subscription.FindAllByFrequencyAndConfirmedStatus"
 	const query = `
 		SELECT 
@@ -180,14 +180,18 @@ func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx contex
 
 	rows, err := ex.QueryContext(ctx, query, frequency)
 	if err != nil {
-		return nil, fmt.Errorf("%s: query failed: %w", op, err)
-	}
-	defer rows.Close()
+		err = fmt.Errorf("%s: query failed: %w", op, err)
 
-	var subscriptions []*model.Subscription
+		return
+	}
+	defer func(rows *sql.Rows) {
+		cerr := rows.Close()
+		err = errors.Join(err, cerr)
+	}(rows)
+
 	for rows.Next() {
 		var s model.Subscription
-		err := rows.Scan(
+		err = rows.Scan(
 			&s.Id,
 			&s.SubscriberId,
 			&s.LocationId,
@@ -197,14 +201,18 @@ func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx contex
 			&s.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("%s: scan failed: %w", op, err)
+			err = fmt.Errorf("%s: scan failed: %w", op, err)
+
+			return
 		}
 		subscriptions = append(subscriptions, &s)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("%s: rows iteration error: %w", op, err)
+	if err = rows.Err(); err != nil {
+		err = fmt.Errorf("%s: rows iteration error: %w", op, err)
+
+		return
 	}
 
-	return subscriptions, nil
+	return
 }

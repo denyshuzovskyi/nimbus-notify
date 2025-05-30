@@ -50,11 +50,11 @@ func (h *SubscriptionHandler) Subscribe(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err = h.subscriptionService.Subscribe(r.Context(), subscriptionReq); err != nil {
-		if errors.Is(err, commonerrors.LocationNotFound) {
+		if errors.Is(err, commonerrors.ErrLocationNotFound) {
 			http.Error(w, "invalid input", http.StatusBadRequest)
 			h.log.Error("couldn't validate city", "error", err)
 			return
-		} else if errors.Is(err, commonerrors.SubscriptionAlreadyExists) {
+		} else if errors.Is(err, commonerrors.ErrSubscriptionAlreadyExists) {
 			http.Error(w, "email already subscribed", http.StatusConflict)
 			h.log.Error("subscription already exists", "error", err)
 			return
@@ -70,11 +70,11 @@ func (h *SubscriptionHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	token := r.PathValue("token")
 
 	if err := h.subscriptionService.Confirm(r.Context(), token); err != nil {
-		if errors.Is(err, commonerrors.InvalidToken) {
+		if errors.Is(err, commonerrors.ErrInvalidToken) {
 			http.Error(w, "invalid token", http.StatusBadRequest)
 			h.log.Error("invalid token", "error", err)
 			return
-		} else if errors.Is(err, commonerrors.TokenNotFound) {
+		} else if errors.Is(err, commonerrors.ErrTokenNotFound) {
 			http.Error(w, "token not found", http.StatusNotFound)
 			h.log.Error("token not found", "error", err)
 			return
@@ -90,11 +90,11 @@ func (h *SubscriptionHandler) Unsubscribe(w http.ResponseWriter, r *http.Request
 	token := r.PathValue("token")
 
 	if err := h.subscriptionService.Unsubscribe(r.Context(), token); err != nil {
-		if errors.Is(err, commonerrors.InvalidToken) {
+		if errors.Is(err, commonerrors.ErrInvalidToken) {
 			http.Error(w, "invalid token", http.StatusBadRequest)
 			h.log.Error("invalid token", "error", err)
 			return
-		} else if errors.Is(err, commonerrors.TokenNotFound) {
+		} else if errors.Is(err, commonerrors.ErrTokenNotFound) {
 			http.Error(w, "token not found", http.StatusNotFound)
 			h.log.Error("token not found", "error", err)
 			return

@@ -64,7 +64,7 @@ func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, locat
 		if errIn != nil {
 			return errIn
 		}
-		if lastWeather != nil && lastWeather.LastUpdated == weather.LastUpdated {
+		if lastWeather != nil && lastWeather.LastUpdated.Equal(weather.LastUpdated) {
 			s.log.Info("last weather update is already saved")
 			return nil
 		}

@@ -21,3 +21,6 @@ go test ./...
 docker build -f api-server.Dockerfile -t nimbus-notify .
 docker-compose up
 
+golangci-lint run
+golangci-lint fmt
+

@@ -89,7 +89,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 		} else {
 			weather, errIn := s.weatherProvider.GetCurrentWeather(subReq.City)
 			if errIn != nil {
-				if errors.Is(errIn, commonerrors.LocationNotFound) {
+				if errors.Is(errIn, commonerrors.ErrLocationNotFound) {
 					return errIn
 				} else {
 					return fmt.Errorf("unable to validate location err:%w", errIn)
@@ -124,7 +124,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 			return errIn
 		}
 		if subscription != nil {
-			return commonerrors.SubscriptionAlreadyExists
+			return commonerrors.ErrSubscriptionAlreadyExists
 		}
 
 		subscription = &model.Subscription{
@@ -187,10 +187,10 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 			return errIn
 		}
 		if token == nil {
-			return commonerrors.TokenNotFound
+			return commonerrors.ErrTokenNotFound
 		}
 		if time.Now().UTC().After(token.ExpiresAt) || token.Type != model.TokenType_Confirmation {
-			return commonerrors.InvalidToken
+			return commonerrors.ErrInvalidToken
 		}
 
 		subscription, errIn := s.subscriptionRepository.FindById(ctx, tx, token.SubscriptionId)
@@ -198,7 +198,7 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 			return errIn
 		}
 		if subscription == nil {
-			return commonerrors.UnexpectedState
+			return commonerrors.ErrUnexpectedState
 		}
 
 		subscription.Status = model.SubscriptionStatus_Confirmed
@@ -260,9 +260,9 @@ func (s *SubscriptionService) Unsubscribe(ctx context.Context, tokenStr string) 
 			return errIn
 		}
 		if token == nil {
-			return commonerrors.TokenNotFound
+			return commonerrors.ErrTokenNotFound
 		} else if time.Now().UTC().After(token.ExpiresAt) || token.Type != model.TokenType_Unsubscribe {
-			return commonerrors.InvalidToken
+			return commonerrors.ErrInvalidToken
 		}
 
 		subscription, errIn := s.subscriptionRepository.FindById(ctx, tx, token.SubscriptionId)

@@ -51,7 +51,7 @@ func (c *Client) GetCurrentWeather(location string) (*model.WeatherWithLocation,
 	}(resp.Body)
 
 	if resp.StatusCode == http.StatusBadRequest {
-		return nil, commonerrors.LocationNotFound
+		return nil, commonerrors.ErrLocationNotFound
 	}
 
 	var weather CurrentWeather

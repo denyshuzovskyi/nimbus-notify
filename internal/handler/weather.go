@@ -38,7 +38,7 @@ func (h *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Reques
 
 	weatherDto, err := h.weatherService.GetCurrentWeatherForLocation(r.Context(), location)
 	if err != nil {
-		if errors.Is(err, commonerrors.LocationNotFound) {
+		if errors.Is(err, commonerrors.ErrLocationNotFound) {
 			http.Error(w, "City not found", http.StatusNotFound)
 			h.log.Info("couldn't get weatherDto for provided location", "location", location)
 			return
